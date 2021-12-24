@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31321.278
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReactAdminAuthDemo.Api", "ReactAdminAuthDemo.Api\ReactAdminAuthDemo.Api.csproj", "{5C9A3643-5610-44B5-BBAB-44B38F0D267D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReactAdminAuthDemo.Api", "ReactAdminAuthDemo.Api\ReactAdminAuthDemo.Api.csproj", "{5C9A3643-5610-44B5-BBAB-44B38F0D267D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Client", "Client", "{8FF65750-3565-4F01-81E4-A85E94661AF1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
