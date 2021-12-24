@@ -13,6 +13,8 @@ namespace ReactAdminAuthDemo.Api.Authentication
         public string LastName { get; set; }
 
         [NotMapped]
-        public string FullName { get => FirstName + " "+ LastName; } 
+        public string FullName { get => FirstName + " "+ LastName; }
+        public string RefreshToken { get; set; }
+        public DateTime RefreshTokenExpiryTime { get; set; }
     }
 }

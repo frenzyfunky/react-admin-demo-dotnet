@@ -37,7 +37,7 @@ namespace ReactAdminAuthDemo.Api
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-                    options.JsonSerializerOptions.PropertyNamingPolicy = null;
+                    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 });
 
@@ -67,6 +67,7 @@ namespace ReactAdminAuthDemo.Api
             });
 
             services.AddSingleton<IFilter, Filter>();
+            services.AddTransient<ITokenService, TokenService>();
             services.AddCors();
         }
 
@@ -85,6 +86,7 @@ namespace ReactAdminAuthDemo.Api
             app.UseCors(conf =>
             {
                 conf.WithExposedHeaders("Content-Range");
+                conf.AllowAnyHeader();
                 conf.AllowAnyOrigin();
                 conf.WithMethods("POST", "GET", "PUT", "DELETE");
             });

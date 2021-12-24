@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
 using ReactAdminAuthDemo.Api.Authentication;
 using ReactAdminAuthDemo.Api.Models;
 using ReactAdminAuthDemo.Api.Options;
@@ -14,6 +15,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace ReactAdminAuthDemo.Api.Controllers
@@ -26,18 +28,21 @@ namespace ReactAdminAuthDemo.Api.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
         private readonly IOptions<JwtBearerOptions> _jwtOptions;
+        private readonly ITokenService _tokenService;
 
         public AuthenticateController(
                 UserManager<ApplicationUser> userManager, 
                 RoleManager<IdentityRole> roleManager, 
                 IConfiguration configuration,
-                IOptions<JwtBearerOptions> jwtOptions
+                IOptions<JwtBearerOptions> jwtOptions,
+                ITokenService tokenService
             )
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
             _jwtOptions = jwtOptions;
+            _tokenService = tokenService;
         }
 
         [HttpPost]
@@ -53,6 +58,7 @@ namespace ReactAdminAuthDemo.Api.Controllers
                 {
                     new Claim(ClaimTypes.Name, user.UserName),
                     new Claim(ClaimTypes.GivenName, user.FullName),
+                    new Claim(ClaimTypes.Email, user.Email),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 };
 
@@ -61,23 +67,98 @@ namespace ReactAdminAuthDemo.Api.Controllers
                     authClaims.Add(new Claim(ClaimTypes.Role, userRole));
                 }
 
-                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
+                var token = _tokenService.GenerateAccessToken(authClaims);
+                var refreshToken = _tokenService.GenerateRefreshToken();
 
-                var token = new JwtSecurityToken(
-                    issuer: _configuration["JWT:ValidIssuer"],
-                    audience: _configuration["JWT:ValidAudience"],
-                    expires: DateTime.Now.AddHours(4),
-                    claims: authClaims,
-                    signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-                    );
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddMonths(1);
+
+                await _userManager.UpdateAsync(user);
 
                 return Ok(new
                 {
-                    token = new JwtSecurityTokenHandler().WriteToken(token),
+                    token = token.Token,
+                    refreshToken = refreshToken,
                     expiration = token.ValidTo
                 });
             }
             return Unauthorized();
+        }
+
+        [HttpPost]
+        [Route("validate")]
+        public IActionResult Validate([FromBody] JsonElement accessToken)
+        {
+            var token = accessToken.GetProperty("accessToken").GetString();
+            if (token is null || string.IsNullOrEmpty(token))
+            {
+                return BadRequest(new Response
+                {
+                    Message = "Empty token",
+                    Status = "Error"
+                });
+            }
+
+            try
+            {
+                new JwtSecurityTokenHandler().ValidateToken(token, _jwtOptions.Value.TokenValidationParameters, out var validatedToken);
+            }
+            catch (SecurityTokenExpiredException ex)
+            {
+                return BadRequest(new Response
+                {
+                    Message = "Token expired get another one with refresh token",
+                    Status = "Expired"
+                });
+            }
+            catch (Exception)
+            {
+                return BadRequest(new Response
+                {
+                    Message = "Token validation failed",
+                    Status = "Error"
+                });
+            }
+
+            return Ok(new Response
+            {
+                Message = "Valid token",
+                Status = "Success"
+            });
+        }
+
+        [HttpPost]
+        [Route("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] TokenApiModel tokenApiModel)
+        {
+            if (tokenApiModel is null)
+            {
+                return BadRequest("Invalid client request");
+            }
+            string accessToken = tokenApiModel.AccessToken;
+            string refreshToken = tokenApiModel.RefreshToken;
+            var principal = _tokenService.GetPrincipalFromExpiredToken(accessToken);
+            var username = principal.Identity.Name;
+
+            var user = await _userManager.FindByNameAsync(username);
+
+            if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiryTime <= DateTime.Now)
+            {
+                return BadRequest("Invalid client request");
+            }
+            var newAccessToken = _tokenService.GenerateAccessToken(principal.Claims);
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+
+            user.RefreshToken = newRefreshToken;
+            await _userManager.UpdateAsync(user);
+
+            return Ok(new
+            {
+                token = newAccessToken.Token,
+                refreshToken = newRefreshToken,
+                expiration = newAccessToken.ValidTo
+            });
+
         }
 
         [HttpPost]

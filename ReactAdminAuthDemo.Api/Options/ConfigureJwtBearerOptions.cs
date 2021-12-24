@@ -31,6 +31,8 @@ namespace ReactAdminAuthDemo.Api.Options
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero,
                 ValidAudience = _configuration["JWT:ValidAudience"],
                 ValidIssuer = _configuration["JWT:ValidIssuer"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]))

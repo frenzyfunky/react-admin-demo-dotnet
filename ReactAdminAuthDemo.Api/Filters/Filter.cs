@@ -20,8 +20,8 @@ namespace ReactAdminAuthDemo.Api.Filters
         public PaginationModel<T> ApplyFilters<T>(IEnumerable<T> source, string[] sort = null, int[] range = null, JObject filter = null) where T : class
         {
             List<T> tmp = source.ToList();
-            
-            if (filter != null)
+
+            if (filter != null && filter.Count > 0)
             {
                 var dict = new Dictionary<string, object>();
 

@@ -44,7 +44,6 @@ namespace ReactAdminAuthDemo.Api.Controllers
 
             var client = _httpClientFactory.CreateClient("FakeProductsApi");
             var response = await client.GetAsync("");
-            int total = products.Count;
 
             products.AddRange(JsonSerializer.Deserialize<List<Product>>(await response.Content.ReadAsStringAsync(), _jsonOptions));
 
